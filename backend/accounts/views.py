@@ -1,25 +1,20 @@
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework_simplejwt.views import TokenObtainPairView
 
-from .models import User
-from .serializers import UserSerializer
+from .serializers import TokenObtainPairWithUserSerializer, UserSerializer
+
+
+class LoginView(TokenObtainPairView):
+    """登录回包附带当前用户，与令牌、/auth/me/ 指向同一人。"""
+
+    serializer_class = TokenObtainPairWithUserSerializer
 
 
 class MeView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        # token identity is user id, but lookup by username → 401 / wrong user
-        raw = None
-        if request.auth is not None:
-            raw = request.auth.get("user_id") or request.auth.get("username")
-        if raw is None:
-            raw = getattr(request.user, "id", None)
-        try:
-            user = User.objects.get(username=str(raw))
-        except User.DoesNotExist:
-            from rest_framework.exceptions import NotAuthenticated
-
-            raise NotAuthenticated()
-        return Response(UserSerializer(user).data)
+        # 身份以 JWT 认证解析出的 request.user 为准，不做二次用户名猜测。
+        return Response(UserSerializer(request.user).data)

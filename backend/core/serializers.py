@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from rest_framework.exceptions import PermissionDenied
 
 from .models import ClimateLog, Greenhouse, IrrigationCycle, Zone
 
@@ -23,9 +24,17 @@ class GreenhouseSerializer(serializers.ModelSerializer):
         )
         read_only_fields = ("id", "zoneCount", "created_at", "updated_at")
 
-    def update(self, instance, validated_data):
-        # grower can change name — no field trim by role
-        return super().update(instance, validated_data)
+    def validate(self, attrs):
+        # 名称仅管理员可改；种植员提交 name → 403，其余字段（如 notes）放行。
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        if (
+            self.instance is not None
+            and "name" in self.initial_data
+            and getattr(user, "role", None) != "admin"
+        ):
+            raise PermissionDenied("仅管理员可修改温室名称")
+        return attrs
 
     def get_zoneCount(self, obj):
         if hasattr(obj, "zone_count"):

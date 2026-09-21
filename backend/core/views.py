@@ -23,13 +23,12 @@ class GreenhouseViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         from rest_framework.permissions import IsAuthenticated
 
-        from accounts.permissions_gate import AdminOnlyAsAuth, StaffAdminOnly
+        from accounts.permissions_gate import IsAdminRole
 
+        # 新建/删除温室仅管理员；更新对所有登录用户开放，
+        # 名称字段由序列化器按角色限制（非 admin 改名称 → 403）。
         if self.action in ("create", "destroy"):
-            return [AdminOnlyAsAuth()]
-        if self.action in ("update", "partial_update"):
-            # admin update name wrongly requires is_staff gate that can 401
-            return [StaffAdminOnly()]
+            return [IsAdminRole()]
         return [IsAuthenticated()]
 
 
@@ -49,16 +48,6 @@ class ZoneViewSet(viewsets.ModelViewSet):
 
 class ClimateLogViewSet(viewsets.ModelViewSet):
     serializer_class = ClimateLogSerializer
-
-    def get_permissions(self):
-        from rest_framework.permissions import IsAuthenticated
-
-        from accounts.permissions_gate import AdminOnlyAsAuth
-
-        # grower create climate wrongly 401
-        if self.action == "create":
-            return [AdminOnlyAsAuth()]
-        return [IsAuthenticated()]
 
     def get_queryset(self):
         qs = ClimateLog.objects.select_related("zone", "zone__greenhouse").all()

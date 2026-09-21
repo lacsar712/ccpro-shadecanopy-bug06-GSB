@@ -23,10 +23,6 @@ class GreenhouseSerializer(serializers.ModelSerializer):
         )
         read_only_fields = ("id", "zoneCount", "created_at", "updated_at")
 
-    def update(self, instance, validated_data):
-        # grower can change name — no field trim by role
-        return super().update(instance, validated_data)
-
     def get_zoneCount(self, obj):
         if hasattr(obj, "zone_count"):
             return obj.zone_count

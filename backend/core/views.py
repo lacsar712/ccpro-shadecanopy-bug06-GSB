@@ -7,6 +7,8 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from accounts.permissions_gate import GreenhouseUpdatePermission, IsAdminRole
+
 from .models import ClimateLog, Greenhouse, IrrigationCycle, Zone
 from .serializers import (
     ClimateLogSerializer,
@@ -21,15 +23,12 @@ class GreenhouseViewSet(viewsets.ModelViewSet):
     serializer_class = GreenhouseSerializer
 
     def get_permissions(self):
-        from rest_framework.permissions import IsAuthenticated
-
-        from accounts.permissions_gate import AdminOnlyAsAuth, StaffAdminOnly
-
         if self.action in ("create", "destroy"):
-            return [AdminOnlyAsAuth()]
+            # 新建/删除温室仅管理员：种植员 403，错令牌 401
+            return [IsAdminRole()]
         if self.action in ("update", "partial_update"):
-            # admin update name wrongly requires is_staff gate that can 401
-            return [StaffAdminOnly()]
+            # 管理员可改全部字段；种植员可改备注类字段但不能改名称
+            return [GreenhouseUpdatePermission()]
         return [IsAuthenticated()]
 
 
@@ -50,15 +49,7 @@ class ZoneViewSet(viewsets.ModelViewSet):
 class ClimateLogViewSet(viewsets.ModelViewSet):
     serializer_class = ClimateLogSerializer
 
-    def get_permissions(self):
-        from rest_framework.permissions import IsAuthenticated
-
-        from accounts.permissions_gate import AdminOnlyAsAuth
-
-        # grower create climate wrongly 401
-        if self.action == "create":
-            return [AdminOnlyAsAuth()]
-        return [IsAuthenticated()]
+    # 任何已登录用户（含种植员）都可新建气候记录；默认 IsAuthenticated
 
     def get_queryset(self):
         qs = ClimateLog.objects.select_related("zone", "zone__greenhouse").all()
